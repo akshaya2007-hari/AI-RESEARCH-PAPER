@@ -1,39 +1,87 @@
 import streamlit as st
-import os
 import tempfile
-
-from dotenv import load_dotenv
+import os
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Load API key
-load_dotenv()
+# ----------------------------
+# PAGE CONFIG
+# ----------------------------
 
-# Gemini model
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0.3
+st.set_page_config(
+    page_title="AI Research Paper Summarizer",
+    page_icon="📄",
+    layout="wide"
 )
 
-st.set_page_config(page_title="AI Research Paper Summarizer")
-
 st.title("📄 AI Research Paper Summarizer")
+st.write("Upload a research paper PDF and generate a summary.")
+
+# ----------------------------
+# API KEY
+# ----------------------------
+
+try:
+    api_key = st.secrets["GOOGLE_API_KEY"]
+except:
+    api_key = None
+
+if not api_key:
+    st.error("Google API Key not found.")
+    st.info(
+        "For Streamlit Cloud, add GOOGLE_API_KEY in App Settings → Secrets."
+    )
+    st.stop()
+
+os.environ["GOOGLE_API_KEY"] = api_key
+
+# ----------------------------
+# GEMINI MODEL
+# ----------------------------
+
+try:
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
+        temperature=0.3
+    )
+except Exception as e:
+    st.error(f"Model Initialization Error: {e}")
+    st.stop()
+
+# ----------------------------
+# PDF UPLOAD
+# ----------------------------
 
 uploaded_file = st.file_uploader(
     "Upload Research Paper",
-    type="pdf"
+    type=["pdf"]
 )
 
 if uploaded_file:
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        pdf_path = tmp.name
+    with tempfile.NamedTemporaryFile(
+        delete=False,
+        suffix=".pdf"
+    ) as tmp_file:
 
-    loader = PyPDFLoader(pdf_path)
-    docs = loader.load()
+        tmp_file.write(uploaded_file.read())
+        pdf_path = tmp_file.name
+
+    try:
+        loader = PyPDFLoader(pdf_path)
+        docs = loader.load()
+
+        st.success(f"PDF Loaded Successfully ({len(docs)} pages)")
+
+    except Exception as e:
+        st.error(f"PDF Loading Error: {e}")
+        st.stop()
+
+    # ----------------------------
+    # SPLIT DOCUMENT
+    # ----------------------------
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
@@ -45,11 +93,15 @@ if uploaded_file:
     paper_text = ""
 
     for chunk in chunks:
-        paper_text += chunk.page_content
+        paper_text += chunk.page_content + "\n"
+
+    # ----------------------------
+    # SUMMARY BUTTON
+    # ----------------------------
 
     if st.button("Generate Summary"):
 
-        with st.spinner("Analyzing Paper..."):
+        with st.spinner("Analyzing Research Paper..."):
 
             prompt = f"""
             You are an AI Research Paper Summarizer.
@@ -63,37 +115,60 @@ if uploaded_file:
             5. Future Scope
             6. Conclusion
 
-            Paper:
+            Research Paper:
 
             {paper_text[:15000]}
             """
 
-            response = llm.invoke(prompt)
+            try:
 
-            st.subheader("Summary")
-            st.write(response.content)
+                response = llm.invoke(prompt)
+
+                st.subheader("📌 Research Paper Summary")
+                st.write(response.content)
+
+            except Exception as e:
+
+                st.error(f"Summary Generation Error: {e}")
 
     st.divider()
 
+    # ----------------------------
+    # QUESTION ANSWERING
+    # ----------------------------
+
+    st.subheader("Ask Questions About the Paper")
+
     question = st.text_input(
-        "Ask a question about the paper"
+        "Enter your question"
     )
 
     if st.button("Get Answer"):
 
-        qa_prompt = f"""
-        Answer only from the research paper.
+        if question.strip() == "":
+            st.warning("Please enter a question.")
 
-        Paper:
+        else:
 
-        {paper_text[:15000]}
+            qa_prompt = f"""
+            Answer only from the research paper.
 
-        Question:
+            Research Paper:
 
-        {question}
-        """
+            {paper_text[:15000]}
 
-        answer = llm.invoke(qa_prompt)
+            Question:
 
-        st.subheader("Answer")
-        st.write(answer.content)
+            {question}
+            """
+
+            try:
+
+                answer = llm.invoke(qa_prompt)
+
+                st.subheader("Answer")
+                st.write(answer.content)
+
+            except Exception as e:
+
+                st.error(f"Question Answering Error: {e}")
