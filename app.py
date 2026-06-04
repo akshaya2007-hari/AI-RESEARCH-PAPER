@@ -24,7 +24,7 @@ st.write("Upload a research paper PDF and generate a summary.")
 # ----------------------------
 
 try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
+    api_key = st.secrets["AQ.Ab8RN6JhzJX5mktIXhflJqYMN8pBzMEOy05z7YQlDr-o6SVXyw"]
 except:
     api_key = None
 
