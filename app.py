@@ -6,9 +6,9 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# -------------------------------
+# ---------------------------------
 # PAGE CONFIG
-# -------------------------------
+# ---------------------------------
 
 st.set_page_config(
     page_title="AI Research Paper Summarizer",
@@ -19,27 +19,27 @@ st.set_page_config(
 st.title("📄 AI Research Paper Summarizer")
 st.write("Upload a research paper PDF and generate a summary.")
 
-# -------------------------------
-# LOAD API KEY FROM STREAMLIT SECRET
-# -------------------------------
+# ---------------------------------
+# LOAD API KEY FROM STREAMLIT SECRETS
+# ---------------------------------
 
 try:
-    api_key = st.secrets["AQ.Ab8RN6JhzJX5mktIXhflJqYMN8pBzMEOy05z7YQlDr-o6SVXyw"]
+    api_key = st.secrets["GOOGLE_API_KEY"]
 except Exception:
     api_key = None
 
 if not api_key:
     st.error("Google API Key not found.")
     st.info(
-        "Add GOOGLE_API_KEY inside Streamlit Cloud → App Settings → Secrets"
+        "Go to App Settings → Secrets and add GOOGLE_API_KEY"
     )
     st.stop()
 
 os.environ["GOOGLE_API_KEY"] = api_key
 
-# -------------------------------
-# INITIALIZE GEMINI MODEL
-# -------------------------------
+# ---------------------------------
+# GEMINI MODEL
+# ---------------------------------
 
 try:
     llm = ChatGoogleGenerativeAI(
@@ -47,19 +47,19 @@ try:
         temperature=0.3
     )
 except Exception as e:
-    st.error(f"Gemini Initialization Error: {e}")
+    st.error(f"Gemini Error: {e}")
     st.stop()
 
-# -------------------------------
-# FILE UPLOAD
-# -------------------------------
+# ---------------------------------
+# FILE UPLOADER
+# ---------------------------------
 
 uploaded_file = st.file_uploader(
     "Upload Research Paper PDF",
     type=["pdf"]
 )
 
-if uploaded_file is not None:
+if uploaded_file:
 
     with tempfile.NamedTemporaryFile(
         delete=False,
@@ -69,27 +69,25 @@ if uploaded_file is not None:
         tmp_file.write(uploaded_file.read())
         pdf_path = tmp_file.name
 
-    # -------------------------------
+    # ---------------------------------
     # LOAD PDF
-    # -------------------------------
+    # ---------------------------------
 
     try:
-
         loader = PyPDFLoader(pdf_path)
         docs = loader.load()
 
         st.success(
-            f"PDF Loaded Successfully ✅ ({len(docs)} pages)"
+            f"PDF Loaded Successfully ({len(docs)} pages)"
         )
 
     except Exception as e:
-
         st.error(f"PDF Loading Error: {e}")
         st.stop()
 
-    # -------------------------------
-    # SPLIT DOCUMENT
-    # -------------------------------
+    # ---------------------------------
+    # TEXT SPLITTING
+    # ---------------------------------
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
@@ -103,18 +101,20 @@ if uploaded_file is not None:
     for chunk in chunks:
         paper_text += chunk.page_content + "\n"
 
-    st.write(f"Document Chunks Created: {len(chunks)}")
+    st.write(
+        f"Document processed into {len(chunks)} chunks."
+    )
 
-    # -------------------------------
-    # SUMMARY BUTTON
-    # -------------------------------
+    # ---------------------------------
+    # SUMMARY SECTION
+    # ---------------------------------
 
     if st.button("Generate Summary"):
 
-        with st.spinner("Analyzing Research Paper..."):
+        with st.spinner("Analyzing Paper..."):
 
             summary_prompt = f"""
-            You are an AI Research Paper Summarizer Agent.
+            You are an AI Research Paper Summarizer.
 
             Analyze the research paper and provide:
 
@@ -134,9 +134,8 @@ if uploaded_file is not None:
 
                 response = llm.invoke(summary_prompt)
 
-                st.subheader("📌 Research Paper Summary")
-
-                st.markdown(response.content)
+                st.subheader("📌 Summary")
+                st.write(response.content)
 
             except Exception as e:
 
@@ -146,11 +145,11 @@ if uploaded_file is not None:
 
     st.divider()
 
-    # -------------------------------
-    # QUESTION ANSWERING SECTION
-    # -------------------------------
+    # ---------------------------------
+    # QUESTION ANSWERING
+    # ---------------------------------
 
-    st.subheader("🤖 Ask Questions About the Research Paper")
+    st.subheader("🤖 Ask Questions About the Paper")
 
     question = st.text_input(
         "Enter your question"
@@ -158,7 +157,8 @@ if uploaded_file is not None:
 
     if st.button("Get Answer"):
 
-        if question.strip() == "":
+        if not question.strip():
+
             st.warning(
                 "Please enter a question."
             )
@@ -166,9 +166,7 @@ if uploaded_file is not None:
         else:
 
             qa_prompt = f"""
-            You are a Research Paper Assistant.
-
-            Answer only from the provided paper.
+            Answer only from the research paper.
 
             Research Paper:
 
@@ -184,7 +182,6 @@ if uploaded_file is not None:
                 answer = llm.invoke(qa_prompt)
 
                 st.subheader("Answer")
-
                 st.write(answer.content)
 
             except Exception as e:
