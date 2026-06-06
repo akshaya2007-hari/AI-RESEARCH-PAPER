@@ -29,25 +29,23 @@ except Exception:
     api_key = None
 
 if not api_key:
-    st.error("Google API Key not found.")
-    st.info(
-        "Go to App Settings → Secrets and add GOOGLE_API_KEY"
-    )
+    st.error("Google API Key not found in Streamlit Secrets.")
     st.stop()
 
 os.environ["GOOGLE_API_KEY"] = api_key
 
 # ---------------------------------
-# GEMINI MODEL
+# LOAD GEMINI MODEL
 # ---------------------------------
 
 try:
     llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         temperature=0.3
     )
+
 except Exception as e:
-    st.error(f"Gemini Error: {e}")
+    st.error(f"Gemini Initialization Error: {e}")
     st.stop()
 
 # ---------------------------------
@@ -106,12 +104,12 @@ if uploaded_file:
     )
 
     # ---------------------------------
-    # SUMMARY SECTION
+    # SUMMARY BUTTON
     # ---------------------------------
 
     if st.button("Generate Summary"):
 
-        with st.spinner("Analyzing Paper..."):
+        with st.spinner("Analyzing Research Paper..."):
 
             summary_prompt = f"""
             You are an AI Research Paper Summarizer.
@@ -166,7 +164,10 @@ if uploaded_file:
         else:
 
             qa_prompt = f"""
-            Answer only from the research paper.
+            You are an AI Research Assistant.
+
+            Answer ONLY using information
+            from the research paper.
 
             Research Paper:
 
